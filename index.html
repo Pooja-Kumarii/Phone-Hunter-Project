@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneHunter Pro | Premium Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <nav class="sticky top-0 z-50 glass border-b border-slate-200 py-4 mb-8">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold bg-indigo-600 text-white px-3 py-1 rounded-lg">PhoneHunter</h1>
+            <p class="hidden md:block text-slate-500 text-sm font-medium">Find your next flagship device</p>
+        </div>
+    </nav>
+
+    <section class="container mx-auto px-6 text-center max-w-3xl">
+        <h2 class="text-4xl font-extrabold mb-4 tracking-tight">Search for Any Phone</h2>
+        <p class="text-slate-500 mb-8 text-lg">Try "iPhone", "Samsung", "Oppo", or "Huawei"</p>
+        
+        <div class="relative flex items-center bg-white shadow-xl rounded-2xl p-2 border border-slate-100">
+            <input id="search-input" type="text" placeholder="Search by brand or model..." 
+                   class="w-full p-4 text-lg focus:outline-none rounded-xl">
+            <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-4 rounded-xl transition-all active:scale-95">
+                Search
+            </button>
+        </div>
+    </section>
+
+    <main class="container mx-auto px-6 py-12">
+        
+        <div id="loading" class="hidden flex flex-col items-center py-20">
+            <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            <p class="mt-4 text-slate-500 font-medium">Scanning the database...</p>
+        </div>
+
+        <div id="phone-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            </div>
+
+        <div id="no-results" class="hidden text-center py-20">
+            <p class="text-2xl text-slate-400 font-semibold">No phones found. Try a different keyword!</p>
+        </div>
+
+        <div id="show-all-btn" class="hidden text-center mt-16">
+            <button onclick="handleSearch(true)" class="bg-slate-800 hover:bg-black text-white px-10 py-4 rounded-2xl font-bold shadow-lg transition-all">
+                Show All Results
+            </button>
+        </div>
+    </main>
+
+    <div id="details-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-8 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-400 hover:text-black">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div id="modal-content">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let lastSearch = "";
+
+        async function handleSearch(isAll = false) {
+            const input = document.getElementById('search-input');
+            const grid = document.getElementById('phone-grid');
+            const loader = document.getElementById('loading');
+            const noRes = document.getElementById('no-results');
+            const showAllDiv = document.getElementById('show-all-btn');
+
+            const searchText = input.value || lastSearch;
+            if (!searchText) return;
+            lastSearch = searchText;
+
+            // Reset UI
+            loader.classList.remove('hidden');
+            noRes.classList.add('hidden');
+            if (!isAll) grid.innerHTML = "";
+
+            const res = await fetch(`https://openapi.programming-hero.com/api/phones?search=${searchText}`);
+            const data = await res.json();
+            const phones = data.data;
+
+            loader.classList.add('hidden');
+
+            if (phones.length === 0) {
+                noRes.classList.remove('hidden');
+                showAllDiv.classList.add('hidden');
+                return;
+            }
+
+            // Show All Logic
+            if (phones.length > 12 && !isAll) {
+                showAllDiv.classList.remove('hidden');
+                displayPhones(phones.slice(0, 12));
+            } else {
+                showAllDiv.classList.add('hidden');
+                displayPhones(phones);
+            }
+        }
+
+        function displayPhones(phones) {
+            const grid = document.getElementById('phone-grid');
+            phones.forEach(phone => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group";
+                div.innerHTML = `
+                    <div class="bg-slate-50 rounded-2xl p-8 mb-6 overflow-hidden">
+                        <img src="${phone.image}" class="mx-auto group-hover:scale-110 transition-transform duration-500">
+                    </div>
+                    <h3 class="text-xl font-bold mb-1">${phone.phone_name}</h3>
+                    <p class="text-slate-400 font-medium mb-6 uppercase tracking-widest text-xs">${phone.brand}</p>
+                    <button onclick="showDetails('${phone.slug}')" class="w-full py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                        View Details
+                    </button>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        async function showDetails(id) {
+            const res = await fetch(`https://openapi.programming-hero.com/api/phone/${id}`);
+            const data = await res.json();
+            const p = data.data;
+
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('modal-content');
+
+            content.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-8">
+                    <div class="bg-slate-100 p-8 rounded-2xl flex-shrink-0">
+                        <img src="${p.image}" class="mx-auto shadow-lg">
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold mb-2">${p.name}</h2>
+                        <p class="text-indigo-600 font-semibold mb-6">Released: ${p.releaseDate || 'TBA'}</p>
+                        
+                        <div class="space-y-4">
+                            <div class="border-b pb-2"><strong>Chip:</strong> ${p.mainFeatures.chipSet}</div>
+                            <div class="border-b pb-2"><strong>Memory:</strong> ${p.mainFeatures.memory}</div>
+                            <div class="border-b pb-2"><strong>Display:</strong> ${p.mainFeatures.displaySize}</div>
+                            <div class="border-b pb-2 text-sm"><strong>Sensors:</strong> ${p.mainFeatures.sensors.join(', ')}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
